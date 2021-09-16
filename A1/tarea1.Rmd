@@ -1,0 +1,375 @@
+---
+title: "Tarea_1"
+author: "Nicolás Núñez de Cela Román"
+date: "12/9/2021"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Sección previa
+
+Cargamos las librerías que son necesarias para la realización de la práctica:
+
+```{r, message=FALSE}
+library(tidyverse)
+library(viridisLite)
+library(gridExtra)
+library(nycflights13)
+library(haven)
+```
+
+# Práctica 0
+
+## Ejercicio 0
+
+Comenzamos incluyendo la realización de los ejercicios de la *Práctica00*.
+
+### Ejercicio 0.1
+
+Creamos un vector dado_honesto con 100 elementos del 1 al 6. Con este, realizamos una tabla de frecuencias con el comando table y con la librería dplyr (metemos el vector en un data frame y utilizamos las *pipes* y la función count()).
+
+```{r}
+dado_honesto = sample(1:6, 100, replace = TRUE)
+
+table(dado_honesto)
+
+dado_honesto_2 <- data.frame(dado_honesto)
+dado_honesto_2 %>% 
+  count(dado_honesto)
+```
+ A continuación, realizamos una tabla de frecuencias relativas con la función prop.table(), otra vez de dos formas diferentes.
+```{r}
+prop.table(table(dado_honesto))
+
+dado_honesto_2 %>% 
+  count(dado_honesto) %>% 
+  mutate(dado_honesto, relFreq = prop.table(n), n = NULL)
+```
+ 
+### Ejercicio 0.2
+
+Creamos ahora un nuevo vector, dado_cargado, en el que la probabilidad de obtener un 6 es el doble que la de obtener el resto de números. Volvemos a crear, con este vector, las tablas de frecuencia absolutas y relativas, utilizando la función table y dplyr.
+ 
+```{r}
+truco <- c(1/7,1/7,1/7,1/7,1/7,2/7)
+
+dado_cargado = sample(1:6, 100, replace = TRUE, prob = truco)
+
+table(dado_cargado)
+
+dado_cargado_2 <- data.frame(dado_cargado)
+dado_cargado_2 %>% 
+  count(dado_cargado)
+
+prop.table(table(dado_cargado))
+
+dado_cargado_2 %>% 
+  count(dado_cargado) %>% 
+  mutate(dado_cargado, relFreq = prop.table(n), n = NULL)
+```
+Vemos que, efectivamente, el número de veces que sale el número 6 es aproximadamente el doble de las veces que salen los demás números.
+
+### Ejercicio 0.3
+
+Creamos los vectores v1, v2 y v3 con las funciones rep() y seq().
+```{r}
+
+(v1 <- rev(rep(seq(from = 1, to = 4, by = 1), each = 4)))
+(v2 <- rep(seq(from = 1, to = 5, by = 1), times = seq(from = 1, to = 5, by = 1)))
+(v3 <- rep(seq(from = 1, to = 4, by = 1), times = 4))
+
+```
+### Ejercicio 0.4
+
+Creamos la tabla mpg2 a partir de la tabla mpg. Para ello, seleccionamos las columnas cuyo nombre empieza por "c" con la función select(starts_with()) y las filas que contengan el valor "pickup" en la columna class con la función filter().
+```{r}
+(mpg2 <- mpg %>% 
+  select(starts_with("c")) %>% 
+  filter(class == "pickup"))
+```
+
+### Ejercicio 0.5
+
+Descargamos el fichero census.dta, que se trata de un archivo de tipo Stata.
+
+```{r}
+census <- read_dta("http://www.stata-press.com/data/r8/census.dta")
+```
+
+Calculamos las poblaciones totales de las regiones censales y las representamos en un diagrama de barras:
+
+```{r, message=FALSE}
+(prueba<-census %>% 
+  group_by(region) %>% 
+  summarise(poblacion = sum(pop)))
+
+ggplot(data = prueba) +
+  geom_col(mapping = aes(x = region, y = poblacion))
+
+```
+
+Ordenamos los estados por población, de mayor a menor:
+
+```{r}
+census %>% 
+  select(state,pop) %>% 
+  arrange(desc(pop))
+```
+
+Creamos una nueva variable, div_marr, que contiene la tasa de divorcios y matrimonios por estado:
+
+```{r}
+(div_marr <- census %>% 
+  mutate(tasa_div_marr = divorce/marriage) %>% 
+  select(state,tasa_div_marr))
+```
+
+Para ver cuáles son los 10 estados más envejecidos, calculamos la edad mediana y el porcentaje de la población mayor de 65 años. En la siguiente tabla se muestran los 10 estados con mayor edad mediana.
+
+```{r}
+(pop_mayor <- census %>% 
+  summarise(state, edad_mediana = medage, porc_mayor = pop65p/pop) %>% 
+  arrange(desc(edad_mediana)) %>% 
+  head(10))
+```
+
+Por último, representamos un histograma de la variable medage junto con la curva de densidad.
+
+```{r}
+cortes = seq(min(census$medage),max(census$medage),length.out=11)
+ggplot(data = census,aes(x=medage)) +
+  geom_histogram(aes(y=stat(density)), breaks = cortes, fill = "red", color = "black")+
+  geom_density(color = "yellow",size =1.5)
+```
+
+# Práctica 1
+
+## Ejercicio 1: Análisis exploratorio de un conjunto de datos y operaciones con dplyr.
+
+Antes de nada, guardamos en la variable chlstrl el fichero cholesterol.csv.
+
+```{r}
+chlstrl <- read.csv(file ="./data/cholesterol.csv",header=TRUE,sep=",")
+```
+
+La información básica del fichero nos la proporciona el comando str(). Vemos que es un data.frame con 403 observaciones y 7 variables, cuyos nombres también se muestran, junto con el tipo de dato que guardan.
+
+```{r}
+str(chlstrl)
+```
+Podemos ver los datos de tipo NA que hay en la tabla utilizando la función is.na(). Si sobre esta aplicamos which(), nos devuelve las posiciones donde hay datos de tipo NA. Los números que devuelve cuentan en vertical (de columna en columna), comenzando en la primera y acabando en la última.  Sin embargo, también podemos ver los valores NA por columna si aplicamos la misma función a alguna de estas columnas, tal y como se muestra a continuación. Así vemos, por posición en cada una de las columnas, dónde hay datos de tipo NA.
+
+```{r}
+which(is.na(chlstrl))
+
+which(is.na(chlstrl$chol))
+which(is.na(chlstrl$age))
+which(is.na(chlstrl$gender))
+which(is.na(chlstrl$height))
+which(is.na(chlstrl$weight))
+which(is.na(chlstrl$hip))
+which(is.na(chlstrl$waist))
+```
+Vemos que no hay datos de tipo NA ni en la columna age ni en la columna gender.
+
+Ahora analizamos una variable numérica y continua, en este caso la variable chol. Para ello, primero mostramos toda su información estadística con summary(), es decir, el mínimo y el máximo, la media y la mediana, el primer y tercer cuartiles y el número de NA que tiene. Por otro lado, calculamos su desvición típica.
+
+```{r}
+summary(chlstrl$chol)
+sd(chlstrl$chol, na.rm= TRUE)
+```
+
+Para terminar de comprender la variable, a continuación se representan una serie de gráficas. En la primera de ellas, vemos un histograma junto con la curva de densidad correspondiente. En la segunda, un boxplot junto con las curvas de densidad de los puntos.
+
+```{r, warning=FALSE}
+cortes = seq(min(chlstrl$chol, na.rm = TRUE),max(chlstrl$chol, na.rm = TRUE),length.out = 16)
+ggplot(data = chlstrl, mapping = aes(chol)) +
+  geom_histogram(aes(y = stat(density)), breaks = cortes, fill = "yellow", color = "black") +
+  geom_density(color = "red", size = 1.5)
+
+ggplot(data = chlstrl) + 
+  geom_violin(mapping = aes(x=0,y = chol))+
+  scale_x_discrete(breaks = c()) +
+  geom_boxplot(mapping = aes(y = chol), fill = "darkseagreen")+
+  geom_jitter(aes(x=0,y=chol),position= position_jitter(w=0.05,h=0),col="blue")
+```
+
+Analizamos ahora una varible de tipo factor. En este caso es la variable gender que puede tomar los valores male/female. 
+El primer paso es convertirla a tipo factor. Después, calculamos las tablas de frecuencias absolutas (que nos da el número de hombres y de mujeres en el estudio) y la de frecuencias relativas (que nos da sus correspondientes proporciones). 
+Por último, representamos en un gráfico de barras los dos factores, de forma que podemos observar esta proporción de manera más visual.
+
+```{r}
+chlstrl$gender = factor(chlstrl$gender)
+
+chlstrl %>% 
+  count(gender)
+
+chlstrl %>% 
+  count(gender) %>% 
+  mutate(gender,prop.table(n),n= NULL)
+
+ggplot(chlstrl) +
+  geom_bar(mapping = aes(x = gender), fill=c("red","blue"))
+```
+Transformamos ahora las medidas de altura y peso (height y weight) al sistema internacional.
+
+```{r}
+chlstrl_si <- chlstrl %>% 
+  mutate("height" = height*0.0254, "weight" = weight*0.454)
+```
+
+Añadimos la columna BMI:
+
+```{r}
+chlstrl_si <- chlstrl_si %>% 
+  mutate("BMI" = weight/(height)^2)
+```
+
+Creamos ahora una nueva columna en la que se divide la edad en tres intervalos (se pueden ver en dicha tabla). Con esto último, se puede hacer un conteo del número de personas en cada uno de los intervalos, así como una media del BMI y del cholesterol de las mujeres en cada uno de los grupos de edad. Todo ello se muestra a continuación.
+
+```{r}
+edades <- cut(chlstrl$age,breaks = seq(10,100,30))
+
+chlstrl_age <- chlstrl_si %>% 
+  mutate("ageGroup" = cut(age,breaks = seq(10,100,30)))
+
+chlstrl_age %>% 
+  group_by(ageGroup) %>% 
+  count()
+
+chlstrl_age %>% 
+  group_by(ageGroup) %>% 
+  filter(gender == "female") %>% 
+  summarise(media_col = mean(chol,na.rm=TRUE),media_bmi = mean(BMI,na.rm=TRUE))
+  
+```
+
+## Ejercicio 2: Funciones de R.
+
+Creamos la función cambiosSigno(v) que nos devuelve el número de cambios de signo que hay en un vector que le pasamos como argumento.
+
+```{r}
+cambiosSigno = function(vector_num, cambios = 0){
+  long = length(vector_num)
+  for (k in 2:long){
+    if (vector_num[k]*vector_num[k-1] < 0){
+        cambios = cambios + 1
+      }
+    }
+    return(cambios)
+}
+```
+
+La podemos modificar para que nos devuelva la posición donde se producen esos cambios de signo y la llamamos cambiosSignoPos(v).
+
+```{r}
+cambiosSignoPos = function(vector_num, cambios = c()){
+  long = length(vector_num)
+  for (k in 2:long){
+    if (vector_num[k]*vector_num[k-1] < 0){
+        cambios = append(cambios,k)
+      }
+    }
+    return(cambios)
+}
+```
+
+Incluimos el código que genera vectores aleatorios sin tener en cuenta el 0 y se lo pasamos a las funciones para que nos devuelvan los cambios de signo y dónde se han producido estos.
+
+```{r}
+(vector = sample(c(-10:-1,1:10),20,replace = TRUE))
+
+cambiosSigno(vector)
+
+cambiosSignoPos(vector)
+```
+
+## Ejercicio 3. R4DS.
+
+### Ejercicio 6 de la sección 3.6.1 de R4DS
+
+En este ejercicio se pretende replicar el código que genera la figura del enunciado. Este código se presenta a continuación. Hemos creado 6 figuras y luego hemos hecho un grid con ellas, todo utilizando los datos de la tabla mpg.
+
+```{r, message=FALSE}
+
+p1 <- ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_point() + 
+  geom_smooth(se = FALSE)
+
+p2 <- ggplot(data = mpg, mapping = aes(x = displ, y = hwy, group = drv)) + 
+  geom_point() + 
+  geom_smooth(se = FALSE)
+
+p3 <- ggplot(data = mpg, mapping = aes(x = displ, y = hwy, colour = drv)) + 
+  geom_point() + 
+  geom_smooth(se = FALSE)
+
+p4 <- ggplot() + 
+  geom_point(data = mpg, mapping = aes(x = displ, y = hwy, colour = drv)) + 
+  geom_smooth(data = mpg, mapping = aes(x = displ, y = hwy),se = FALSE)
+
+p5 <- ggplot() + 
+  geom_point(data = mpg, mapping = aes(x = displ, y = hwy, colour = drv)) + 
+  geom_smooth(data = mpg, mapping = aes(x = displ, y = hwy, linetype = drv),se = FALSE)
+
+p6 <- ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_point(size = 4, color = "white") +
+  geom_point(aes(colour = drv))
+
+grid.arrange(p1,p2,p3,p4,p5,p6,nrow = 3)
+```
+
+### Ejercicio 1 de la sección 5.2.4 de r4DS
+
+Este ejercicio demanda hacer una serie de filtros con el comando filter(). Estos son:
+
+Vuelos que:
+
+1. Tengan un retraso de llegada de más de dos horas:
+```{r}
+flights %>% 
+  filter(arr_delay >= 120)
+```
+
+2. Volaron a Houston:
+```{r}
+flights %>% 
+  filter(dest == "IAH" | dest == "HOU")
+```
+
+3. Su operadora fue "United", "American" o "Delta":
+```{r}
+flights %>% 
+  filter(carrier %in% c("UA","AA","DL"))
+```
+
+4. Volaron en verano:
+```{r}
+flights %>% 
+  filter(month %in% 7:9)
+```
+
+5. No salieron tarde pero llegaron más de dos horas tarde:
+```{r}
+flights %>% 
+  filter(arr_delay >= 120, dep_delay <= 0)
+```
+
+6. Se retrasaron por lo menos una hora, pero recuperaron media hora en el vuelo:
+```{r}
+flights %>% 
+  filter(dep_delay >= 60, dep_delay - arr_delay > 30)
+```
+
+7. Salieron entre medianoche y las 6 AM:
+```{r}
+flights %>% 
+  filter(dep_time <= 600 | dep_time == 2400)
+```
+
