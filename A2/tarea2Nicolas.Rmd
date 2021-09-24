@@ -1,0 +1,372 @@
+---
+title: "Tarea 2"
+author: "Nicolás Núñez de Cela Román"
+date: 'Curso 2021-22. Última actualización: `r format(Sys.time(), "%Y-%m-%d")`'
+output:
+  pdf_document: default
+  html_document: default
+subtitle: Master en Big Data. Fundamentos Matemáticos del Análisis de Datos (FMAD).
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Preliminares
+
++ Comenzamos con las librerías que vamos a necesitar durante la tarea.
+
+```{r, message=FALSE}
+library(tidyverse)
+library(dplyr, warn.conflicts = FALSE)
+options(dplyr.summarise.inform = FALSE)
+```
+
+
+# Ejercicio 1. Simulando variables aleatorias discretas.
+
+**Apartado 1:** La variable aleatoria discreta $X1$ tiene esta tabla de densidad de probabilidad (es la variable que se usa como ejemplo en la Sesión ):
+$$
+\begin{array}{|c|c|c|c|c|c|c|}
+\hline
+\text{valor de }X1 & 0 & 1 & 2 & 3 \\
+\hline
+\text{Probabilidad de ese valor }P(X = x_i) & \dfrac{64}{125} &
+\dfrac{48}{125}& \dfrac{12}{125} & \dfrac{1}{125}\rule{0mm}{6mm} \\[3mm]
+\hline
+\end{array}
+$$
+Calcula la media y la varianza teóricas de esta variable.
+
+Para calcular la media teórica, calculamos un vector con los valores y otro con sus probabilidades. Con ellos, calculamos su producto escalar para calcular la media teórica, dada por $\mu = \sum_{i= 0}^{3}x_{i}p_{i}$. Para calcular la varianza, simplemente hacemos uso de la definición: $$\sigma^{2} = \sum_{i=0}^{3}{(x_{i}-\mu)}^2p_{i}$$
+
+```{r}
+valor <- seq(0,3,by = 1)
+prob <- c(64,48,12,1)
+prob <- prob/125
+
+(media_teorica <- valor%*%prob %>% 
+  .[1,1])
+
+(varianza_teorica <- sum((valor-media_teorica)^2*prob))
+```
+
+
+**Apartado 2:**  Combina `sample` con `replicate` para simular cien mil muestras de tamaño 10 de esta variable $X1$. Estudia la distribución de las medias muestrales como hemos hecho en ejemplos previos, ilustrando con gráficas la distribución de esas medias muestrales. Cambia después el tamaño de la muestra a 30 y repite el análisis.
+
+Definimos el número de veces que vamos a replicar un código, $k$ y el tamaño del sample, $n$. Luego utilizamos el comando replicate, combinado con sample, donde calculamos muestras con los posibles valores de $x1$ y con las probabilidades de dichos valores.
+
+```{r}
+k = 100000
+
+n = 10
+
+muestras1 <- replicate(k, { 
+  x1 = sample(valor, n ,replace = TRUE, prob)
+  mean(x1)
+})
+```
+
+Para el análisis de dichas muestras, representamos el histograma y la línea de densidad, junto con la media de las muestras y la media teórica de la población.
+
+```{r, warning=FALSE}
+cortes = seq(min(muestras1),max(muestras1),length.out = 15)
+
+muestras1 %>% 
+  as_tibble() %>% 
+ggplot() +
+  geom_histogram(mapping = aes(x = value, y = stat(density)),breaks = cortes,  color ="black", fill = "yellow") +
+  geom_density(mapping = aes(x = value), adjust = 4) + 
+  geom_vline(xintercept = media_teorica, color = "blue", linetype = "dashed") +
+  geom_vline(xintercept = mean(muestras1), color = "red", linetype = "dashed") +
+  ggtitle("Distribución de medias muestrales n = 10")
+```
+Vemos que no se observa la media de la población porque está superpuesta con la media del conjunto de muestras. Esto sucede en general, pero dependiendo del conjunto de muestras que nos toque, la coincidencia será mayor o menor.
+
+Vamos a afianzar este pensamiento calculando muestras más grandes. Repetimos el código con 30 muestras.
+
+```{r, warning = FALSE}
+k = 100000
+
+n = 30
+
+muestras2 <-replicate(k, { 
+  x1 = sample(valor, n,replace = TRUE, prob)
+  mean(x1)
+})
+
+cortes2 = seq(min(muestras2), max(muestras2),length.out = 16)
+
+muestras2 %>% 
+  as_tibble() %>% 
+ggplot(main = ) +
+  geom_histogram(mapping = aes(x = value, y = stat(density)), breaks = cortes2, color ="black", fill = "yellow") +
+  geom_density(mapping = aes(x = value), adjust = 2) + 
+  geom_vline(xintercept = media_teorica, color = "blue", linetype = "dashed") +
+  geom_vline(xintercept = mean(muestras2), color = "red", linetype = "dashed") +
+  ggtitle("Distribución de medias muestrales n = 30")
+  
+```
+Vemos como se asemeja cada vez más a una distribución normal, tal y como debe ser. Además, la media de las medias de las muestras coincide con la media de la población.
+
+**Apartado 3:** La variable aleatoria discreta $X2$ tiene esta tabla de densidad de probabilidad:
+$$
+\begin{array}{|c|c|c|c|c|c|}
+\hline
+\text{valor de }X2 & 0 & 1 & 2 \\
+\hline
+\text{Probabilidad de ese valor }P(X = x_i) & \dfrac{1}{2} &
+\dfrac{1}{4}&  \dfrac{1}{4}\rule{0mm}{6mm} \\[3mm]
+\hline
+\end{array}
+$$
+Suponemos que $X1$ y $X2$ son independientes. ¿Qué valores puede tomar la suma $X1 + X2$? ¿Cuál es su tabla de probabilidad?
+
+```{r}
+valor_2 <- seq(0,2,1)
+prob_2 <- c(1/2,1/4,1/4)
+```
+
+
+Si las dos variables son independientes, el mínimo valor que pueden tomar $x1 + x2$ es 0. Por otro lado, su máximo valor es 5. De esta forma, la suma puede tomar 6 valores diferentes: 0,1,2,3,4,5.
+
+Pasamos ahora a calcular su tabla de probabilidad. Para ello, creamos dos tibble, uno con las probabilidades de cada uno de los valores de la suma, y otro con dichos valores:
+
+```{r}
+(x <- merge(prob,prob_2,by = NULL) %>% 
+  mutate(probabilidad = x*y) %>% 
+  select(probabilidad))
+
+(y <- merge(valor,valor_2,by = NULL) %>% 
+  mutate(valores = x + y) %>% 
+  select(valores))
+```
+
+A partir de estos, la tabla de probabilidad es:
+
+```{r}
+(val_prob <- as_tibble(c(x,y)) %>% 
+  mutate(probabilidad = probabilidad/sum(probabilidad)) %>% 
+  group_by(valores) %>% 
+  summarise(prob = sum(probabilidad)))
+```
+
+
+**Apartado 4:** Calcula la media teórica de la suma $X_1 + X_2$. Después usa `sample` y `replicate` para simular cien mil *valores* de esta variable suma. Calcula la media de esos valores. *Advertencia:* no es el mismo tipo de análisis que hemos hecho en el segundo apartado. 
+
+Podemos calcular la media teórica utilizando la fórmula $$\mu = \sum_{i=0}^{n}x_{i}p_{i}$$
+
+```{r}
+(media_suma <- val_prob %>% 
+  summarise(media = sum(valores*prob)) %>%  
+  .[1,1])
+```
+
+O con la suma de ambas medias:
+
+```{r}
+media_teorica_2 <- valor_2%*%prob_2 %>% 
+  .[1,1]
+
+(media_suma_2 <- media_teorica + media_teorica_2)
+```
+
+Con ello, vamos a obtener $k$ muestras de la suma y vamos a calcular su media:
+
+```{r}
+k = 100000
+
+valores_suma <- replicate(k, {
+  sample(val_prob$valores,1,replace = TRUE,val_prob$prob)
+})
+
+mean(valores_suma)
+```
+
+El resultado al que llegamos es claro: la media de la suma es igual que la media de las muestras de la suma.
+
+
+# Ejercicio 2. Datos limpios
+
++ Descargamos el Fichero de datos.
+
++ Este fichero contiene las notas de los alumnos de una clase, que hicieron dos tests cada semana durante cinco semanas. La tabla de datos no cumple los principios de *tidy data* que hemos visto en clase. Tu tarea en este ejercicio es explicar por qué no se cumplen y obtener una tabla de datos limpios con la misma información usando *tidyR*.  
+**Indicación:** lee la ayuda de la función `separate` de *tidyR*.
+
+```{r,message=FALSE}
+notas <- read_csv(file = "./data/testResults.csv")
+
+head(notas)
+```
+
+Los principios del *tidy data* son claros :
+
+  1. Cada variable en una columna.
+  2. Cada observación en una fila.
+  3. Cada valor en una celda.
+  
+El fichero notas no es *tidy data*, pues, por un lado, las variables gender y age están en la misma columna, mientras que por otro lado, week debería ser una variable categórica cuyos posibles valores vayan desde week1 hasta week5. Es decir, tendremos que dividir la columna gender_age en gender y age (para tener dos columnas con su propia variable) y unificar las columnas de week en una sola con este nombre. 
+
+De esta forma, reordenamos los datos:
+
+```{r}
+notas_2 <- notas %>% 
+  as_tibble() %>% 
+  pivot_longer(c("week1","week2","week3","week4","week5"),names_to = "week",values_to = "mark") %>% 
+  separate(gender_age, into = c("gender","age"),sep ="_")
+```
+
+Comprobamos ahora que los datos sí son *tidy data*.
+
+```{r}
+head(notas_2)
+```
+
+
+# Ejercicio 3. Lectura de R4DS.
+
+Contnuando con nuestra *lectura conjunta* de este libro, si revisas el índice verás que hemos cubierto (holgadamente en algún caso) el contenido de los Capítulos 6, 8, 9, 10 y 11. Todos esos Capítulos son relativamente ligeros.  Por eso esta semana conviene detenerse un poco en la lectura de los Capítulos 7 y 12, que son los más densos en información. Y como motivación os proponemos un par de ejercicios, uno por cada uno de esos capítulos. 
+
+## Ejercicio 2 de la sección 7.5.1.1: 
+¿Qué variable es más importante en el dataset diamonds para predecir el precio de un diamante? ¿Cómo está esa variable relacionada con cut? ¿Por qué la combinación de esas dos relaciones lleva a que los diamantes de menor calidad son más caros?
+
+Utilizamos el dataset de R diamonds. De todas las variables de la tabla, tenemos 3 que son factores: cut, color y clarity. El resto son variables numéricas continuas. Para ver cuál influye más en el precio de un diamante, vamos a representar, frente al precio, las diferentes variables.
+
+En primer lugar, representamos en un diagrama de puntos del precio frente a carat.
+
+```{r}
+ggplot(data = diamonds) + 
+  geom_point(mapping = aes(x = carat, y = price))
+```
+Vemos que existe una fuerte correlación: a medida que aumenta carat, aumenta en gran medida el precio de los diamantes. Pero vamos a representar un boxplot con esta misma información con tal de que se represente de forma más clara, agrupada por el carat de los diamantes.
+
+```{r}
+ggplot(data = diamonds) + 
+  geom_boxplot(mapping = aes(x = carat, y = price, group = cut_width(carat,0.1)),orientation = "x")
+```
+Volvemos a observar claramente que, al aumentar el carat de los diamantes, estos aumentan su precio. 
+Sin embargo, hemos de contemplar el resto de variables antes de afirmar que es carat la más importante a la hora de determinar el precio de los diamantes. Utilizamos un boxplot para representar variables continuas (en este caso el precio) frente a variables categóricas. En primer lugar, vamos a ver cómo se comporta el precio frente al color de los diamantes.
+
+```{r}
+ggplot(data = diamonds) +
+  geom_boxplot(mapping = aes(x = color, y = price))
+```
+Según la descripción de RStudio de la tabla diamonds, el mejor color es el D y el peor el J. Sin embargo, vemos una relación inversa en el precio con respecto a la calidad de los colores, pues los más caros son los J y los más baratos los de color D. A pesar de ello, la variación del precio respecto al color es mucho menor que con respecto a la variable carat, tal y como se comprueba comparando ambas gráficas.
+Ahora veremos la relación entre el precio y la claridad de los diamantes.
+
+```{r}
+ggplot(data = diamonds) +
+  geom_boxplot(mapping = aes(x = clarity, y = price))
+```
+Volvemos a ver que la variación del precio con clarity no es significativa. De hecho, tanto esta variable como color, varían mucho más el precio dentro de sus propias categorías que entre categorías (esto es, el IQR es mayor que la variación del precio entre diferentes valores de clarity).
+
+Las variables que faltan por comprobar son table y depth (pues considerando esas dos consideramos todas las dimensiones):
+
+```{r}
+ggplot(data = diamonds) +
+  geom_point(mapping = aes(x = table, y = price))
+```
+Vemos que no se observa ninguna relación porque hay diamantes de todos los precios independientemente de la variable table.
+
+```{r}
+ggplot(data = diamonds) +
+  geom_point(mapping = aes(x = depth, y = price))
+```
+Tampoco observamos ninguna relación evidente en el caso de la profundidad de los diamantes.
+
+Con todo ello, podemos llegar a la conclusión de que, efectivamente, la variable más importante a la hora de determinar el precio de los diamantes es carat. 
+
+Ahora vamos a ver cuál es la relación entre cut y carat.
+
+```{r}
+ggplot(data = diamonds) +
+  geom_boxplot(mapping = aes(x = cut, y = carat))
+```
+Se observa que conforme aumenta la calidad del corte de los diamantes (derecha en el eje x), aumenta la variabilidad en los quilates de estos (tienen un IQR mayor). Además, hay una ligerísima relación negativa entre el tamaño y el corte: los diamantes tipo Fair tienen más quilates y los Ideal, menos. Por último, vemos que hay muchos datos atípicos por encima pero ninguno por debajo. 
+
+Tal y como dice el enunciado, es cierto que los diamantes cuyo corte tiene menor calidad tienen mayor carat, y por lo tanto mayor precio (ya hemos discutido que el precio aumenta con el carat). Este resultado es contradictorio. Sin embargo, se puede entender si nos fijamos en los valores atípicos. Los diamantes de corte Fair tienen más valores atípicos por encima que el resto de cortes. Esto implica que su media esté desplazada hacia arriba respecto al resto de cortes: tiene más desviación.
+
+Podemos comprobarlo:
+
+```{r}
+diamonds %>% 
+  group_by(cut) %>% 
+  summarise(sd(carat))
+```
+
+También podemos ver, si volvemos a representar el precio frente a carat, como los diamantes de tipo Fair son los más baratos:
+
+```{r}
+ggplot(data = diamonds) + 
+  geom_point(mapping = aes(x = carat, y = price, color = cut))
+```
+Es decir, que la mediana de los quilates del corte Fair sea mayor que el resto, al ser tan pequeña la diferencia, no nos sirve para determinar que su precio es mayor, si no que se lo atribuimos a sus valores atípicos. 
+
+## Ejercicio 4 de la Sección 12.6.1:
+Para cada país, año y sexo computar el número de casos totales de TB. Haz una visualización informativa de los datos.
+
+Tal y como se nos indica en la práctica, vamos a utilizar el código limpio que aparece en la sección 12.6.1 de R4DS.
+
+```{r}
+who1 <- who %>% 
+  pivot_longer(
+    cols = new_sp_m014:newrel_f65, 
+    names_to = "key", 
+    values_to = "cases", 
+    values_drop_na = TRUE
+  )
+
+who2 <- who1 %>% 
+  mutate(key = stringr::str_replace(key, "newrel", "new_rel"))
+
+who3 <- who2 %>% 
+  separate(key, c("new", "type", "sexage"), sep = "_")
+
+who4 <- who3 %>% 
+  select(-new, -iso2, -iso3)
+
+who5 <- who4 %>% 
+  separate(sexage, c("sex", "age"), sep = 1)
+```
+
+Ahora realizamos el ejercicio.
+
+```{r}
+who5 %>%
+  group_by(country, year, sex) %>%
+  summarise(cases = sum(cases))
+```
+
+
+A partir de ahora, para realizar las representaciones gráficas, consideramos los años a partir de 1995 porque en los años anteriores no hay mucha información.
+
+```{r}
+who5 %>%
+  group_by(country, year, sex) %>%
+  filter(year > 1995) %>%
+  summarise(cases = sum(cases)) %>%
+  unite(country_sex, country, sex, remove = FALSE) %>%
+  ggplot(aes(x = year, y = cases, group = country_sex, colour = sex)) +
+  geom_line()
+```
+Esta gráfica no es muy clara, y vemos que en la parte de abajo hay muchos países, por lo que podemos analizar diferentes cosas, como los países con más casos de tuberculosis y separarlos por hombre y mujer: 
+
+```{r, message=FALSE}
+who5 %>%
+  group_by(country, sex, year) %>% 
+  filter(year>1995) %>% 
+  summarise(n=sum(cases)) %>% 
+  ungroup() %>% 
+  group_by(country) %>% 
+  mutate(total_country=sum(n)) %>% 
+  filter(total_country>500000) %>% 
+  ggplot(aes(x=year,y=n,colour=sex))+
+  geom_line()+
+  facet_wrap(~country, scales = "free_y" )
+```
+
+En este conjunto de gráficos se representa la información de los países con más de 500000 casos de tuberculosis, separados en hombre y mujer. Podemos observar que en la mayoría de ellos, el número de casos en hombres es mayor que en mujeres. 
+
+
+
+
